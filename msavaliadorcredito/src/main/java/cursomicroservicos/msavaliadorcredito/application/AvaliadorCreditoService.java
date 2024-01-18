@@ -2,19 +2,18 @@ package cursomicroservicos.msavaliadorcredito.application;
 
 import cursomicroservicos.msavaliadorcredito.application.ex.DadosClienteNotFoundException;
 import cursomicroservicos.msavaliadorcredito.application.ex.ErroComunicacaoMicroservicesException;
-import cursomicroservicos.msavaliadorcredito.domain.model.CartaoCliente;
-import cursomicroservicos.msavaliadorcredito.domain.model.DadosCliente;
-import cursomicroservicos.msavaliadorcredito.domain.model.SituacaoCliente;
+import cursomicroservicos.msavaliadorcredito.domain.model.*;
 import cursomicroservicos.msavaliadorcredito.infra.clients.CartoesResourceClient;
 import cursomicroservicos.msavaliadorcredito.infra.clients.ClienteResourceClient;
 import feign.FeignException;
 import lombok.RequiredArgsConstructor;
-import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 
+import java.math.BigDecimal;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -31,6 +30,40 @@ public class AvaliadorCreditoService {
                 .cliente(dadosClienteResponse.getBody())
                 .cartoes(cartoesResponse.getBody())
                 .build();
+        } catch (FeignException.FeignClientException e) {
+            int status = e.status();
+            if(HttpStatus.NOT_FOUND.value() == status) {
+                throw new DadosClienteNotFoundException();
+            }
+            throw new ErroComunicacaoMicroservicesException(e.getMessage(), status);
+        }
+    }
+
+    public RetornoAvaliacaoCliente realizarAvaliacao(String cpf, Long renda) throws DadosClienteNotFoundException, ErroComunicacaoMicroservicesException{
+        try {
+            ResponseEntity<DadosCliente> dadosClienteResponse = clientsClient.dadosCliente(cpf);
+            ResponseEntity<List<Cartao>> cartoesResponse = cartoesClient.getCartoesRendaAte(renda);
+
+            List<Cartao> catoes = cartoesResponse.getBody();
+
+            var listCartoesAprovados = catoes.stream().map(cartao -> {
+                DadosCliente dadosCliente = dadosClienteResponse.getBody();
+
+                BigDecimal limiteBasico = cartao.getLimiteBasico();
+                BigDecimal idadeBD = BigDecimal.valueOf(dadosCliente.getIdade());
+                var fator = idadeBD.divide(BigDecimal.valueOf(10));
+                BigDecimal limiteAprovado = fator.multiply(limiteBasico);
+
+                CartaoAprovado aprovado = new CartaoAprovado();
+                aprovado.setCartao(cartao.getNome());
+                aprovado.setBandeira(cartao.getBandeira());
+                aprovado.setLimiteAprovado(limiteAprovado);
+
+                return aprovado;
+            }).collect(Collectors.toList());
+
+            return new RetornoAvaliacaoCliente(listCartoesAprovados);
+
         } catch (FeignException.FeignClientException e) {
             int status = e.status();
             if(HttpStatus.NOT_FOUND.value() == status) {
