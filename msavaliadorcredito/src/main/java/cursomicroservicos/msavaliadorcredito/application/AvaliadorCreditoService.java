@@ -2,9 +2,11 @@ package cursomicroservicos.msavaliadorcredito.application;
 
 import cursomicroservicos.msavaliadorcredito.application.ex.DadosClienteNotFoundException;
 import cursomicroservicos.msavaliadorcredito.application.ex.ErroComunicacaoMicroservicesException;
+import cursomicroservicos.msavaliadorcredito.application.ex.ErroSolicitacaoCartaoException;
 import cursomicroservicos.msavaliadorcredito.domain.model.*;
 import cursomicroservicos.msavaliadorcredito.infra.clients.CartoesResourceClient;
 import cursomicroservicos.msavaliadorcredito.infra.clients.ClienteResourceClient;
+import cursomicroservicos.msavaliadorcredito.infra.clients.mqueue.SolicitacaoEmissaoCartaoPublisher;
 import feign.FeignException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -13,6 +15,7 @@ import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 @Service
@@ -20,6 +23,7 @@ import java.util.stream.Collectors;
 public class AvaliadorCreditoService {
     private final ClienteResourceClient clientsClient;
     private final CartoesResourceClient cartoesClient;
+    private final SolicitacaoEmissaoCartaoPublisher emissaoCartaoPublisher;
     public SituacaoCliente obterSituacaoCliente(String cpf) throws DadosClienteNotFoundException, ErroComunicacaoMicroservicesException {
         try {
         ResponseEntity<DadosCliente> dadosClienteResponse = clientsClient.dadosCliente(cpf);
@@ -70,6 +74,16 @@ public class AvaliadorCreditoService {
                 throw new DadosClienteNotFoundException();
             }
             throw new ErroComunicacaoMicroservicesException(e.getMessage(), status);
+        }
+    }
+
+    public ProtocoloSolicitacaoCartao solicitarEmissaoCartao(DadosSolicitacaoEmissaoCartao dadosSolicitacaoEmissaoCartao) {
+        try {
+            emissaoCartaoPublisher.solicitarCartao(dadosSolicitacaoEmissaoCartao);
+            var protocolo = UUID.randomUUID().toString();
+            return new ProtocoloSolicitacaoCartao(protocolo);
+        } catch (Exception e) {
+            throw new ErroSolicitacaoCartaoException(e.getMessage());
         }
     }
 }
