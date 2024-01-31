@@ -8,12 +8,14 @@ import cursomicroservicos.mscartoes.domain.DadosSolicitacaoEmissaoCartao;
 import cursomicroservicos.mscartoes.infra.repository.CartaoRepository;
 import cursomicroservicos.mscartoes.infra.repository.ClienteCartaoRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.messaging.handler.annotation.Payload;
 import org.springframework.stereotype.Component;
 
 @Component
 @RequiredArgsConstructor
+@Slf4j
 public class EmissaoCartaoSubscriber {
     private final CartaoRepository cartaoRepository;
     private final ClienteCartaoRepository clienteCartaoRepository;
@@ -33,7 +35,7 @@ public class EmissaoCartaoSubscriber {
 
             clienteCartaoRepository.save(clienteCartao);
         } catch (JsonProcessingException e) {
-            e.printStackTrace();
+            log.error("Error ao receber solicitacaco de emissao de cartao: {}", e.getMessage());
         }
     }
 }

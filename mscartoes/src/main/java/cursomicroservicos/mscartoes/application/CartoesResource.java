@@ -5,6 +5,7 @@ import cursomicroservicos.mscartoes.application.representation.CartoesPorCliente
 import cursomicroservicos.mscartoes.domain.Cartao;
 import cursomicroservicos.mscartoes.domain.ClienteCartao;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -15,12 +16,14 @@ import java.util.stream.Collectors;
 @RestController
 @RequestMapping("cartoes")
 @RequiredArgsConstructor
+@Slf4j
 public class CartoesResource {
 
     private final CartaoService cartaoService;
     private final ClienteCartaoService clienteCartaoService;
     @GetMapping
     public String status() {
+        log.info("Obtendo o status do microservice de clientes");
         return  "ok";
     }
 
